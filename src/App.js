@@ -59,7 +59,8 @@ export default function App() {
         </span>
       </h1>
 
-      <Search panTo={panTo}/>
+      <Search panTo={panTo} />
+      <Locate panTo={panTo} />
 
       <GoogleMap 
         mapContainerStyle={mapContainerStyle} 
@@ -103,6 +104,21 @@ export default function App() {
   );
 }
 
+function Locate({ panTo }) {
+  return (
+    <button className="locate" onClick={() => {
+      navigator.geolocation.getCurrentPosition((position) => {
+        panTo({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        })
+      }, () => null);
+    }}>
+      <img src="/Compass.svg" alt="compass - locate me"/>
+    </button>
+  )
+}
+
 function Search({ panTo }) {
   const { ready, value, suggestions: { status, data }, setValue, clearSuggestions } = usePlacesAutocomplete({
     requestOptions: {
@@ -135,10 +151,12 @@ function Search({ panTo }) {
           placeholder="Enter an address"
         />
         <ComboboxPopover>
-          {status === "OK" && data.map(({ id, description }) => (
-            <ComboboxOption key={id} value={description} />
-          ))}
+          <ComboboxList>
+            {status === "OK" && data.map(({ id, description }) => (
+              <ComboboxOption key={id} value={description} />
+            ))}
+          </ComboboxList>
         </ComboboxPopover>
-        </Combobox>
+      </Combobox>
     </div>
 )}
