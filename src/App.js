@@ -1,7 +1,7 @@
 import React from 'react';
 import { GoogleMap, useLoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { formatRelative } from 'date-fns';
-import { getGeocode, getLatLng } from 'use-places-autocomplete';
+import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 import { Combobox, ComboboxInput, ComboboxPopover, ComboboxList, ComboboxOption } from '@reach/combobox';
 import '@reach/combobox/styles.css';
 import mapStyles from './mapStyles';
@@ -21,13 +21,14 @@ const options = {
     zoomControl: true
   };
 
-function App() {
+export default function App() {
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries,
   });
   const [markers, setMarkers] = React.useState([]);
+  const [selected, setSelected] = React.useState(null);
 
   const onMapClick = React.useCallback((event) => {
     setMarkers(current => [...current, {
@@ -42,6 +43,11 @@ function App() {
     mapRef.current = map;
   }, [])
 
+  const panTo = React.useCallback(({lat, lng}) => {
+    mapRef.current.panTo({lat, lng});
+    mapRef.current.setZoom(12);
+  }, []);
+
   if (loadError) return "Error Loading Maps";
   if (!isLoaded) return "Loading Maps";
 
@@ -52,6 +58,9 @@ function App() {
           ⛺
         </span>
       </h1>
+
+      <Search panTo={panTo}/>
+
       <GoogleMap 
         mapContainerStyle={mapContainerStyle} 
         zoom={9} 
@@ -69,11 +78,67 @@ function App() {
                 scaledSize: new window.google.maps.Size(30, 30),
                 origin: new window.google.maps.Point(0, 0),
                 anchor: new window.google.maps.Point(15, 15)
-              }}/>
+              }}
+              onClick={() => {
+                setSelected(marker);
+              }}
+            />
           ))}
+
+          {selected ? (
+          <InfoWindow 
+            position={{ lat: selected.lat, lng: selected.lng }}
+            onCloseClick={() => {
+              setSelected(null);
+            }}
+          >
+            <div>
+              <h2>Bear Spotted!</h2>
+              <p>Spotted {formatRelative(selected.time, new Date())}</p>
+            </div>
+          </InfoWindow>
+          ) : null}
         </GoogleMap>
     </div>
   );
 }
 
-export default App;
+function Search({ panTo }) {
+  const { ready, value, suggestions: { status, data }, setValue, clearSuggestions } = usePlacesAutocomplete({
+    requestOptions: {
+      location: { lat: () => 33.448376, lng: () => -112.074036 },
+      radius: 200 * 1000
+    }
+  });
+
+  return (
+    <div className="search">
+      <Combobox 
+        onSelect={async (address) => {
+          setValue(address, false);
+          clearSuggestions();
+
+          try {
+            const results = await getGeocode({address});
+            const { lat, lng } = await getLatLng(results[0]);
+            panTo({ lat, lng });
+          } catch (error) {
+            console.log("error!")
+          }
+        }}
+      >
+        <ComboboxInput 
+          value={value} onChange={(e) => {
+            setValue(e.target.value)
+          }}
+          disabled={!ready}
+          placeholder="Enter an address"
+        />
+        <ComboboxPopover>
+          {status === "OK" && data.map(({ id, description }) => (
+            <ComboboxOption key={id} value={description} />
+          ))}
+        </ComboboxPopover>
+        </Combobox>
+    </div>
+)}
