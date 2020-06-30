@@ -29,6 +29,19 @@ function App() {
   });
   const [markers, setMarkers] = React.useState([]);
 
+  const onMapClick = React.useCallback((event) => {
+    setMarkers(current => [...current, {
+      lat: event.latLng.lat(),
+      lng: event.latLng.lng(),
+      time: new Date()
+    }])
+  }, []);
+
+  const mapRef = React.useRef();
+  const onMapLoad = React.useCallback((map) => {
+    mapRef.current = map;
+  }, [])
+
   if (loadError) return "Error Loading Maps";
   if (!isLoaded) return "Loading Maps";
 
@@ -44,11 +57,21 @@ function App() {
         zoom={9} 
         center={center}
         options={options}
-        onClick={(event) => {
-          setMarkers(current => [...current, {
-
-          }])
-        }}></GoogleMap>
+        onClick={onMapClick}
+        onLoad={onMapLoad}
+        >
+          {markers.map((marker) => (
+            <Marker 
+              key={marker.time.toISOString()} 
+              position={{ lat: marker.lat, lng: marker.lng }}
+              icon={{
+                url: '/bear.svg',
+                scaledSize: new window.google.maps.Size(30, 30),
+                origin: new window.google.maps.Point(0, 0),
+                anchor: new window.google.maps.Point(15, 15)
+              }}/>
+          ))}
+        </GoogleMap>
     </div>
   );
 }
